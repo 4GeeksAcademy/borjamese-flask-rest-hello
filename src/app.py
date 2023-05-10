@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Planet
+from models import db, User, Planet, People
 #from models import Person
 
 app = Flask(__name__)
@@ -54,11 +54,37 @@ def get_users():
 
     return jsonify(user_list), 200
 
+
+
+@app.route('/people', methods=['GET'])
+def get_people():
+    allPeople= People.query.all()
+    result = [element.serialize() for element in allPeople]
+    return jsonify(result), 200
+
+@app.route('/people', methods=['POST'])
+def post_people():
+
+    # obtener los datos de la petición que están en formato JSON a un tipo de datos entendibles por pyton (a un diccionario). En principio, en esta petición, deberían enviarnos 3 campos: el nombre, la descripción del planeta y la población
+    data = request.get_json()
+
+    # creamos un nuevo objeto de tipo Planet
+    people = People(name=data['name'], last_name=data['last_name'], origin=data['origin'])
+
+    # añadimos el planeta a la base de datos
+    db.session.add(people)
+    db.session.commit()
+
+    response_body = {"msg": "People inserted successfully"}
+    return jsonify(response_body), 200
+
+
 @app.route('/planet', methods=['GET'])
 def get_planets():
     allPlanets = Planet.query.all()
     result = [element.serialize() for element in allPlanets]
     return jsonify(result), 200
+
 
 @app.route('/planet', methods=['POST'])
 def post_planet():
