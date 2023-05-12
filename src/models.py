@@ -2,10 +2,20 @@ from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
 
+class Galaxy(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), unique=True, nullable=False)
+    coordinate_center_x = db.Column(db.Float, nullable=False) 
+    coordinate_center_y = db.Column(db.Float, nullable=False)
+    
+
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password = db.Column(db.String(80), nullable=False)
+
+    favorites = db.relationship('Favorite')
+
 
     def __repr__(self):
         return '<User %r>' % self.username
@@ -17,31 +27,20 @@ class User(db.Model):
             # do not serialize the password, its a security breach
         }
 
-class People(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    last_name = db.Column(db.String(240))
-    origin = db.Column(db.String(120), nullable=False)
-
-    def __repr__(self):
-        return '<People %r>' % self.name
-
-    def serialize(self):
-        return {
-            "id": self.id,
-            "name": self.name,
-            "last_name": self.last_name,
-            "origin": self.origin,
-        }
-    
 class Planet(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), unique=True, nullable=False)
     description = db.Column(db.String(240))
     population = db.Column(db.Integer, default=0)
-   
+
+    # OBLIGATORIO para establecer la relación
+    galaxy_id = db.Column(db.Integer, db.ForeignKey('galaxy.id'), nullable=False)
+
+    # OPCIONAL para poder acceder a los campos del planeta relacionado
+    galaxy = db.relationship('Galaxy')
+
     def __repr__(self):
-        return '<Planet %r>' % self.name
+        return f'<Favorite {self.id}>'
 
     def serialize(self):
         return {
@@ -50,18 +49,16 @@ class Planet(db.Model):
             "description": self.description,
             "population": self.population,
         }
-class Galaxy(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), unique=True, nullable=False)
-    coordinate_center_x = db.Column(db.Float, nullable=False) 
-    coordinate_center_y = db.Column(db.Float, nullable=False)
-    
 
+# Va a albergar tanto favoritos de Planets como de People
 class Favorite(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     planet_id = db.Column(db.Integer, db.ForeignKey('planet.id'), nullable=True)
-    
+   
+    #TODO: Tendreis que establecer esta relacion con la tabla People
+    #people_id = db.Column(db.Integer, db.ForeignKey('planet.id'), nullable=True)
+
     planet = db.relationship('Planet')
 
     def __repr__(self):
@@ -73,6 +70,3 @@ class Favorite(db.Model):
             'user_id': self.user_id,
             'planet': self.planet.serialize() if self.planet else None,
         }
-
-
-

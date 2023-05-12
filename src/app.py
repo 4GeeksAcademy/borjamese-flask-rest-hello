@@ -8,7 +8,7 @@ from flask_swagger import swagger
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from admin import setup_admin
-from models import db, User, Planet, People , Favorite
+from models import db, User, Planet, Favorite
 #from models import Person
 
 app = Flask(__name__)
@@ -31,6 +31,9 @@ setup_admin(app)
 def handle_invalid_usage(error):
     return jsonify(error.to_dict()), error.status_code
 
+# En princpio, esta API será usada con autentificacion. Vamos a emular que un usuario ya se ha identificado. 
+current_logged_user_id = 1
+
 # generate sitemap with all your endpoints
 @app.route('/')
 def sitemap():
@@ -43,64 +46,15 @@ def get_users():
     users = User.query.all()
 
     # crea una lista de diccionarios con la información de cada usuario
-    user_list = [
-        {
-            "id": user.id,
-            "email": user.email
-            # agrega aquí cualquier otra información que quieras devolver
-        }
-        for user in users
-    ]
+    user_list = [element.serialize() for element in users]
 
     return jsonify(user_list), 200
-
-
-
-@app.route('/people', methods=['GET'])
-def get_people():
-    allPeople= People.query.all()
-    result = [element.serialize() for element in allPeople]
-    return jsonify(result), 200
-
-
-@app.route('/people/<int:id>', methods=['GET'])
-def get_people_by_id(id):
-    # Search for the people with the specified ID
-    people = People.query.get(id)
-    # Return the people object as JSON
-    return jsonify(people.serialize()), 200
-
-
-@app.route('/people', methods=['POST'])
-def post_people():
-
-    # obtener los datos de la petición que están en formato JSON a un tipo de datos entendibles por pyton (a un diccionario). En principio, en esta petición, deberían enviarnos 3 campos: el nombre, la descripción del planeta y la población
-    data = request.get_json()
-
-    # creamos un nuevo objeto de tipo Planet
-    people = People(name=data['name'], last_name=data['last_name'], origin=data['origin'])
-
-    # añadimos el planeta a la base de datos
-    db.session.add(people)
-    db.session.commit()
-
-    response_body = {"msg": "People inserted successfully"}
-    return jsonify(response_body), 200
-
 
 @app.route('/planet', methods=['GET'])
 def get_planets():
     allPlanets = Planet.query.all()
     result = [element.serialize() for element in allPlanets]
     return jsonify(result), 200
-
-@app.route('/planet/<int:planet_id>', methods=['GET'])
-def get_planets_by_id(planet_id):
-    planet = Planet.query.get(planet_id)
-    if planet:
-        return jsonify(planet.serialize()), 200
-    else:
-        return jsonify({"message": "Planet not found"}), 404
 
 @app.route('/planet-galaxy', methods=['GET'])
 def get_relation_planet_galaxy():
@@ -110,11 +64,9 @@ def get_relation_planet_galaxy():
         response.append({
             'planet': planet.name,
             'galaxy_id': planet.galaxy_id,
-            'galaxy_name': planet.galaxy.name,
-            'coordinate_x': planet.galaxy.coordinate_center_x
+            'galaxy_name': planet.galaxy.name
         })
     return jsonify(response)
-
 
 @app.route('/favorite/planet/<int:planet_id>', methods=['POST'])
 def add_favorite_planet(planet_id):
@@ -122,7 +74,7 @@ def add_favorite_planet(planet_id):
  
     user = User.query.get(current_logged_user_id)
 
-    new_favorite = Favorite(user_id = current_logger_user_id, planet_id = planet_id)
+    new_favorite = Favorite(user_id=current_logged_user_id, planet_id=planet_id)
     db.session.add(new_favorite)
     db.session.commit()
 
@@ -130,8 +82,9 @@ def add_favorite_planet(planet_id):
         "msg": "Favorito agregado correctamente", 
         "favorite": new_favorite.serialize()
     }
-    
+
     return jsonify(response_body), 200
+
 
 @app.route('/planet', methods=['POST'])
 def post_planet():
@@ -149,13 +102,19 @@ def post_planet():
     response_body = {"msg": "Planet inserted successfully"}
     return jsonify(response_body), 200
 
-#para cada planeta va a dar su nombre, el id de la galaxia y el nombre de la galaxia donde se encuentra, relación one to many
+@app.route('/users/favorites', methods=['GET'])
+def get_user_favorites():
+    
+    user = User.query.get(current_logged_user_id)
+    favorites = user.favorites
+    serialized_favorites = [f.serialize() for f in favorites]
 
+    response_body = {
+        "msg": f"Aqui tienes los favoritos de {user.email}",
+        "favorites": serialized_favorites
+    }
 
-
-
-
-
+    return jsonify(response_body), 200
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
